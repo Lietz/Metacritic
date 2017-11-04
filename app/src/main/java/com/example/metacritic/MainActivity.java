@@ -39,13 +39,23 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.BufferedWriter;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import okhttp3.Call;
 import okhttp3.Response;
 
+import static com.example.metacritic.R.id.cancel_action;
 import static com.example.metacritic.R.id.nav_games;
 import static com.example.metacritic.R.id.nav_history;
 import static com.example.metacritic.R.id.nav_home;
@@ -57,6 +67,7 @@ import static com.example.metacritic.R.id.text;
 public class MainActivity extends AppCompatActivity {
 
 
+  //  String filePath = MainActivity.getFilesDir().getPath().toString() + "/fileName.txt";
     private static String latestStr;
     private static String lastUrl;
     private DrawerLayout mDrawerLayout;
@@ -69,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView textView;
     //    private SearchView searchView = (SearchView) findViewById(R.id.search);
     public static List<Listitem> itemList=new ArrayList<>();
-    public static List<Listitem> clickHistory = new ArrayList<>();
+    public static Set<Listitem> clickHistory = new HashSet<>();
     final okhttp3.Callback okhttpcallback=new okhttp3.Callback(){
 
         @Override
@@ -199,11 +210,17 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    @Override
+    protected void onDestroy() {
+        SaveHistory();
+        super.onDestroy();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
         swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
@@ -215,6 +232,7 @@ public class MainActivity extends AppCompatActivity {
         });
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        LoadHistory();
         progressBar = (ProgressBar) findViewById(R.id.progress_bar);
         toolbar.setTitle("");
    //     toolbar.setTitleMarginStart(100) ;
@@ -273,23 +291,26 @@ public class MainActivity extends AppCompatActivity {
                         lastUrl="http://www.metacritic.com/";
                         break;
                     case nav_movies:
-                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/movie",okhttpcallback);
+                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/browse/movies/release-date/theaters/date",okhttpcallback);
+             //           HttpUtil.sendOkHttpRequest("http://www.metacritic.com/movie",okhttpcallback);
                         lastUrl="http://www.metacritic.com/movie";
                         break;
                     case nav_games:
-                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/game",okhttpcallback);
+                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/browse/games/release-date/new-releases/all/date",okhttpcallback);
                         lastUrl="http://www.metacritic.com/game";
                         break;
                     case nav_tv:
-                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/tv",okhttpcallback);
+                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/browse/tv/release-date/new-series/date",okhttpcallback);
                         lastUrl="http://www.metacritic.com/tv";
                         break;
                     case nav_music:
-                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/music",okhttpcallback);
+                        HttpUtil.sendOkHttpRequest("http://www.metacritic.com/browse/albums/release-date/new-releases/date",okhttpcallback);
                         lastUrl="http://www.metacritic.com/music";
                         break;
                     case nav_history:
-                        refreshListview(clickHistory);
+                        List history = new ArrayList();
+                        history.addAll(clickHistory);
+                        refreshListview(history);
                         progressBar.setVisibility(View.GONE);
                         break;
                 }
@@ -304,6 +325,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this,"No data for now!",Toast.LENGTH_SHORT).show();
             return;
         }
+
  //       HttpUtil.sendOkHttpRequest("http://www.metacritic.com/",okhttpcallback);
     //    Log.d("responsestr1",responseStr);
         //    textView.setText(responseStr);
@@ -402,6 +424,10 @@ public class MainActivity extends AppCompatActivity {
             Log.d("linkurl", newitem.getLinkUrl());
             //  Log.d("iftbd",newitem.getMetascore());
             itemList.add(newitem);
+            //
+            if (itemList.size() > 50) {
+                return;
+            }
         }
 //        if (doc.select("item first ").size()!=0){
 //            Log.d("enter", "entered");
@@ -461,4 +487,37 @@ public class MainActivity extends AppCompatActivity {
 //            dialog.show();
 //        }
 //    }
+    private void SaveHistory(){
+        try {
+     //       String filePath = MainActivity.getFilesDir().getPath().toString() + "/fileName.txt";
+            FileOutputStream fos = openFileOutput("Hislistdata", MODE_PRIVATE);
+          //  BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out));
+
+            ObjectOutputStream out = new ObjectOutputStream(fos);
+            out.writeObject(clickHistory);
+            out.flush();
+            out.close();
+        }catch (IOException e ){
+            e.printStackTrace();
+            Log.d("Savefailed", "savefailed");
+        }
+    }
+    private void LoadHistory(){
+        try {
+            clickHistory.clear();
+            FileInputStream inf = openFileInput("Hislistdata");
+            ObjectInputStream in = new ObjectInputStream(inf);
+//            ObjectInputStream in = new ObjectInputStream(new FileInputStream("Hislistdata"));
+            clickHistory = (HashSet<Listitem>) in.readObject();
+            Log.d("loadhis", "OK");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            Log.d("fileno", "filenofound");
+      //      Toast.makeText(MainActivity.this, "No data now!", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 }

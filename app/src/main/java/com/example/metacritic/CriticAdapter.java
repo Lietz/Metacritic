@@ -51,7 +51,7 @@ public class CriticAdapter extends ArrayAdapter<Critic> {
             criticauthor.setText(critic.getAuthor());
         }
         if (critic.getScore().isEmpty()) {
-            criticscore.setBackgroundColor(Color.WHITE);
+            criticscore.setVisibility(View.INVISIBLE);
         }else if (critic.getScore().contains("tbd")){   //==对字符串有待商榷~
             Log.d("tbd",critic.getScore());
             criticscore.setBackgroundColor(Color.GRAY);

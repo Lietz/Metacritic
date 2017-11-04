@@ -42,6 +42,7 @@ import java.util.List;
 
 import jp.wasabeef.glide.transformations.BlurTransformation;
 import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.Response;
 
 import static com.example.metacritic.MainActivity.UPDATE_RESPONSE;
@@ -58,15 +59,21 @@ public class DetailActivity extends AppCompatActivity {
     private TextView summaryText;
     private TextView metascoreView;
     private TextView basedview;
+    private TextView seeallcriticTextview;
     private String detail;
     private String based;
     private String allcriticlink;
     private ListViewForScrollView criticlistview;
     private List<Critic> criticlist = new ArrayList<>();
     private String responseStr = new String();
+    private static okhttp3.Callback okhttpcallback;
 
     private void setView(){
-        parseHtml(responseStr);
+        if (seeallcriticTextview.getText().toString().contains("see all Critic Reviews >>")){
+            parseHtml(responseStr);
+        } else{
+            parseAllcriticHtml(responseStr);
+        }
         summaryText.setText(summary);
         moredetailText.setText(detail);
         metascoreView.setText(score);
@@ -82,7 +89,12 @@ public class DetailActivity extends AppCompatActivity {
             metascoreView.setBackgroundColor(Color.parseColor("#fff700"));
         }
 
-        basedview.setText("Metascore based on "+based+":");
+        if (!based.isEmpty()) {
+            basedview.setText("Metascore based on " + based + ":");
+        } else {
+            basedview.setText("No reviews currently available");
+            seeallcriticTextview.setVisibility(View.GONE);
+        }
         ProgressBar progressBar = (ProgressBar) findViewById(R.id.detail_progressbar);
         progressBar.setVisibility(View.GONE);
         CriticAdapter adapter = new CriticAdapter(DetailActivity.this, R.layout.list_critic_item, criticlist);
@@ -115,6 +127,31 @@ public class DetailActivity extends AppCompatActivity {
 //        basedview.requestFocus();
        // basedview.getFoc
       //  criticcardview.setMinimumHeight();
+        if (allcriticlink.isEmpty()) {
+            seeallcriticTextview.setVisibility(View.INVISIBLE);
+            seeallcriticTextview.setClickable(false);
+        }
+        if (seeallcriticTextview.getText().toString().contains("see all Critic Reviews >>")){
+            seeallcriticTextview.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    seeallcriticTextview.setText("Loading...");
+                    //       seeallcriticTextview.setVisibility(View.INVISIBLE);
+                    HttpUtil.sendOkHttpRequest(allcriticlink,okhttpcallback);
+                }
+            });
+        }else {
+            seeallcriticTextview.setText("Back to top");
+            seeallcriticTextview.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    scrollView.scrollTo(0,0);
+                }
+            });
+
+        }
+
+
 
     }
 
@@ -149,10 +186,12 @@ public class DetailActivity extends AppCompatActivity {
         String imgUrl=intent.getStringExtra("imgurl");
         String linkUrl=intent.getStringExtra("linkurl");
         basedview = (TextView) findViewById(R.id.basedon);
+        seeallcriticTextview= (TextView) findViewById(R.id.see_all_reviews);
+        seeallcriticTextview.setVisibility(View.VISIBLE);
         criticlistview = (ListViewForScrollView) findViewById(R.id.listview_critic);
 
 
-        final okhttp3.Callback okhttpcallback=new okhttp3.Callback(){
+        okhttpcallback=new okhttp3.Callback(){
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
@@ -168,6 +207,7 @@ public class DetailActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call call, IOException e) {
                 e.printStackTrace();
+                seeallcriticTextview.setVisibility(View.VISIBLE);
 
                 runOnUiThread(new Runnable() {
                     @Override
@@ -224,7 +264,12 @@ public class DetailActivity extends AppCompatActivity {
         Document doc = Jsoup.parse(response);
 
         Elements items = doc.select("div.product_details");
-        based=doc.getElementsByClass("based").get(0).child(1).text();
+        if (doc.getElementsByClass("based").size() != 0) {
+            based = doc.getElementsByClass("based").get(0).child(1).text();
+        } else {
+            based = "";
+        }
+        Log.d("basedon",based);
         summary=items.get(0).child(0).text();
         //moredetail
 
@@ -252,10 +297,15 @@ public class DetailActivity extends AppCompatActivity {
             critics = doc.getElementsByClass("review critic");
         }
         Log.d("criticssize", "" + critics.size());
-        allcriticlink=doc.getElementsByClass("critic reviews").get(0).
-                getElementsByClass("review critic last two_source").
-                text();
-        Log.d("criticlink", allcriticlink);
+        if (doc.getElementsByClass("critic reviews").get(0).
+                getElementsByClass("section_footer std_blue").size() != 0) {
+            allcriticlink = doc.getElementsByClass("critic reviews").get(0).
+                    getElementsByClass("section_footer std_blue").get(0).child(0).attr("href");
+            allcriticlink = "http://www.metacritic.com" + allcriticlink;
+            Log.d("criticlink", allcriticlink);
+        } else {
+            allcriticlink="";
+        }
         for (Element item : critics) {
             Critic critic=new Critic();
             String itsscore=item.getElementsByClass("review_grade left").get(0).text();
@@ -263,7 +313,7 @@ public class DetailActivity extends AppCompatActivity {
             String author=item.getElementsByClass("label").text();
             String date = item.getElementsByClass("date").text();
             String summary=item.getElementsByClass("clr summary").text();
-   //         Log.d("summary",summary);
+            //         Log.d("summary",summary);
             critic.setAuthor(author);
             critic.setDate(date);
             critic.setScore(itsscore);
@@ -340,6 +390,35 @@ public class DetailActivity extends AppCompatActivity {
 //        Log.d("itemlistsize",""+itemList.size());
 
     }
+    private void parseAllcriticHtml(String response){
+        Document doc = Jsoup.parse(response);
+        Elements critics;
+        if (doc.getElementsByClass("review critic two_source").size()!=0){    //电影
+            critics = doc.getElementsByClass("review critic two_source");
+        } else{
+            critics = doc.getElementsByClass("review critic");
+        }
+        Log.d("criticssize", "" + critics.size());
+//        allcriticlink = doc.getElementsByClass("critic reviews").get(0).
+//                getElementsByClass("section_footer std_blue").get(0).child(0).attr("href");
+//        allcriticlink="http://www.metacritic.com"+allcriticlink;
+//        Log.d("criticlink", allcriticlink);
+        for (Element item : critics) {
+            Critic critic=new Critic();
+            String itsscore=item.getElementsByClass("review_grade left").get(0).text();
+            String source=item.getElementsByClass("source").text();
+            String author=item.getElementsByClass("label").text();
+            String date = item.getElementsByClass("date").text();
+            String summary=item.getElementsByClass("clr summary").text();
+            //         Log.d("summary",summary);
+            critic.setAuthor(author);
+            critic.setDate(date);
+            critic.setScore(itsscore);
+            critic.setSource(source);
+            critic.setSummary(summary);
+            criticlist.add(critic);
+
+    }}
     public static void setListViewHeightBasedOnChildren(ListView listView,List itemlist) {
         // 获取ListView对应的Adapter
         ListAdapter listAdapter = listView.getAdapter();

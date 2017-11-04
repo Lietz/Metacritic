@@ -52,7 +52,7 @@ public class ItemAdapter extends ArrayAdapter<Listitem> {
         }
         score.setText(item.getMetascore());
         if (item.getMetascore().isEmpty()) {
-            score.setBackgroundColor(Color.WHITE);
+            score.setVisibility(View.INVISIBLE);
         }else if (item.getMetascore().contains("tbd")){   //==对字符串有待商榷~
             Log.d("tbd",item.getMetascore());
             score.setBackgroundColor(Color.GRAY);

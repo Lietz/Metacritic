@@ -1,12 +1,13 @@
 package com.example.metacritic;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * Created by CJ on 2017/6/12.
  */
 
-public class Listitem {
+public class Listitem implements Serializable{
     public String getLinkUrl() {
         return linkUrl;
     }
